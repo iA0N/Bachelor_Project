@@ -11,7 +11,7 @@
                 >
             </button>
             <div class="container">
-                <div id="pdf-container" v-if="true">
+                <div id="pdf-container">
                     <canvas id="the-canvas" class="mx-auto"></canvas>
                     <canvas id="highlight-canvas"></canvas>
                 </div>
@@ -20,8 +20,11 @@
 
 <script setup>
 import { onMounted, onUpdated, ref, watch } from 'vue'
-import * as pdfjsLib from '/js/pdf.mjs?url'; // Import PDF.js library
 import { initFlowbite } from 'flowbite'
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+import pdfWorker from "pdfjs-dist/build/pdf.worker?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const props = defineProps({
     file: String,
@@ -31,30 +34,38 @@ const props = defineProps({
 let pdf = null;
 let current_page = ref(1);
 
-let canvas = null;
+let canvas = ref(null);
 let context = null;
-let highlightCanvas = null;
+let highlightCanvas = ref(null);
 let highlightContext = null;
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/pdf.worker.mjs';
+let pageRendering = false; // Check conflict
+let pageNumPending = null; // Cache waiting page number
 
 onMounted(() => {
     initFlowbite();
 
-    canvas = document.getElementById('the-canvas');
-    context = canvas.getContext('2d');
+    canvas.value = document.getElementById('the-canvas');
+    context = canvas.value.getContext('2d');
 
-    highlightCanvas = document.getElementById('highlight-canvas');
-    highlightContext = highlightCanvas.getContext('2d');
+    highlightCanvas.value = document.getElementById('highlight-canvas');
+    highlightContext = highlightCanvas.value.getContext('2d');
 
     loadDocument();
 })
 
-onUpdated(() => {
-    if (props.search_term != "") {
-        loadDocument();
+
+watch(() => props.file, async () => {
+    if (props.file) {
+        await loadDocument();
     }
-})
+});
+
+// watch(() => props.search_term, async () => {
+//     if (props.search_term) {
+//         await loadDocument();
+//     }
+// });
 
 function prevPage() {
     if (current_page.value > 1) {
@@ -107,27 +118,25 @@ async function getFirstOccurrence() {
 
 function renderPage(pageNumber) {
     pdf.getPage(pageNumber).then(function (page) {
-        const viewport = page.getViewport({ scale: 1 });
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        highlightCanvas.height = viewport.height;
-        highlightCanvas.width = viewport.width;
+        const viewport = page.getViewport({ scale: 0.9 });
+        canvas.value.height = viewport.height;
+        canvas.value.width = viewport.width;
+        highlightCanvas.value.height = viewport.height;
+        highlightCanvas.value.width = viewport.width;
 
         const renderContext = {
             canvasContext: context,
             viewport: viewport
         };
 
-        page.render(renderContext).promise.then(function () {
-            //renderTextLayer(page, viewport);
-        });
+        page.render(renderContext);
     });
 }
 
 
 function renderTextLayer(page, viewport) {
     page.getTextContent().then(function (textContent) {
-        highlightContext.clearRect(0, 0, highlightCanvas.width, highlightCanvas.height);
+        highlightContext.clearRect(0, 0, highlightCanvas.value.width, highlightCanvas.value.height);
         textContent.items.forEach(item => {
             const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
             console.log(transform);
