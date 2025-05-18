@@ -83,29 +83,19 @@ def summarize(doc_id, model):
     match model:
         case 'facebook/bart-large-cnn':
             print("Generating summary with facebook/bart-large-cnn")
-            summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device="cpu")
-            document_text = document_text.replace("\n", " ")
-            document_text = re.sub(r'\s+', ' ', document_text).strip()
-            document_text = re.sub(r'[^a-zA-Z0-9\s.,:?!]+', '', document_text)[:3000]
-            summary = summarizer(document_text, max_length=1200, min_length=100, do_sample=False)[0]['summary_text']
+            summary = prompt_bart_large_cnn(document_text)
 
         case 'Meta-Llama-3.1-8B-Instruct-Q8_0.gguf':
             print("Generating summary with Meta-Llama-3.1-8B-Instruct-Q8_0")
-            llm = Llama(
-                model_path="/home/ia0n/bakk/Bachelor_Project/server/django_backend/api/llms/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf",
-                n_ctx=4096,
-                #n_threads=14,
-            )
-
-            source = document_text[:2000]
-            print(source)
-            summary = llm(f'I want you to summarize a text that i will give you. Do not do anything else. Do not mention or include any parts of the prompt in your answer. Do not cite any pages or persons and just give information about the text itself. End your output as soon as you finished summarizing and do not say anything else. Do not tell me you are ready for the next text or say anything else after finishing the summary. This is the text to process: "{source}"', max_tokens=200)
-            print(summary)
-            summary = summary['choices'][0]['text']
+            summary = prompt_llama_8b(document_text)
             if not summary.endswith(('.', '!', '?')):
                 summary += "..."
-            if summary[0:3] == ' . ':
-                summary = summary[3:]
+
+
+        case 'llama-bart-combined':
+            print("Generating summary with combined pipeline")
+            pre_summary = prompt_llama_8b(document_text, max_tokens=300)
+            summary = prompt_bart_large_cnn(pre_summary)
 
         case _:
             pass
@@ -139,7 +129,7 @@ def store_and_summarize(request):
         )
 
         summary = summarize(doc.id, request.data["model"])
-        return Response({"summary": summary}, status=status.HTTP_200_OK)
+        return Response({"doc_id": doc.id, "summary": summary}, status=status.HTTP_200_OK)
 
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -154,7 +144,7 @@ def get_user_documents(request):
         for d in docs:
             doc_list.append({'id': d.id,
                              'file_name': d.file_name,
-                             'summary_teaser': "" if d.summary is None else json.loads(d.summary)[0][:30] + '...'})
+                             'summary_teaser': "" if d.summary is None else json.loads(d.summary)[0][:60] + '...'})
         return Response({'user_docs': doc_list}, status=status.HTTP_200_OK)
 
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -179,3 +169,46 @@ def get_user_document(request, doc_id):
 
 def fix(match):
     return match.group(1) + match.group(2)
+
+def prompt_llama_8b(document_text, ctx=4096, max_tokens=200):
+    llm = Llama(
+        model_path="/home/ia0n/bakk/Bachelor_Project/server/django_backend/api/llms/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf",
+        n_ctx=ctx,
+        # n_threads=14,
+    )
+
+    source = document_text[:2000]
+    summary = llm(
+        f'I want you to summarize a text that i will give you. Do not do anything else. Do not mention or include any parts of the prompt in your answer. Do not cite any pages or persons and just give information about the text itself. End your output as soon as you finished summarizing and do not say anything else. Do not tell me you are ready for the next text or say anything else after finishing the summary. This is the text to process: "{source}"',
+        max_tokens=max_tokens)
+    summary = summary['choices'][0]['text']
+
+    if summary[0:3] == ' . ':
+        summary = summary[3:]
+    elif summary[0:2] == '. ':
+        summary = summary[2:]
+    return summary
+
+def prompt_bart_large_cnn(document_text):
+    summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device="cpu")
+    document_text = document_text.replace("\n", " ")
+    document_text = re.sub(r'\s+', ' ', document_text).strip()
+    document_text = re.sub(r'[^a-zA-Z0-9\s.,:?!]+', '', document_text)[:3000]
+    summary = summarizer(document_text, max_length=1200, min_length=100, do_sample=False)[0]['summary_text']
+    return summary
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

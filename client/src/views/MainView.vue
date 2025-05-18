@@ -14,14 +14,19 @@ let file_name = "";
 let search_term = ref(""); // Updated through v model
 let search_term_param = ref(""); // Only updated on search hit, passed down to child component
 let username = ""
-let csrf_token = 'jj6dbsL01C1awa935a5qeX46hq1l0ndH'
-let user_docs = ref(null)
+let csrf_token = 'vgrvksbnNH6L1F7euzD8Es88T3a6yOrf'
+let user_docs = ref([])
+
+// DEMO
+let sentences_list_view = ref(true);
+
 reset()
 
 watch(uploaded_document, (new_document) => {
     // yes, console.log() is a side effect
     //console.log(`new document is: ${new_document}`)
 })
+
 
 async function dosearch() {
     await get_highlighted_pdf();
@@ -31,6 +36,8 @@ async function dosearch() {
 const fileUploadedEvent = async (file, dataUrl, model) => {
     uploaded_document.value = dataUrl;
     file_name = file.name;
+    search_term.value = null;
+    search_term_param.value = null;
     storeDocumentAndQuerySummary(model)
     //console.log(file);
 };
@@ -40,11 +47,11 @@ async function reset() {
     uploaded_document.value = null;
     uploaded_document_summary_sentences.value = null;
     uploaded_document_summary.value = null;
+    uploaded_document_id.value = null;
     file_name = "";
     search_term.value = null;
     search_term_param.value = null;
     await getUserDocuments()
-
 }
 
 async function get_highlighted_pdf() {
@@ -85,8 +92,10 @@ async function storeDocumentAndQuerySummary(model) {
             },
         });
         let summary = res.data['summary'];
+        let doc_id = res.data['doc_id'];
         uploaded_document_summary_sentences.value = summary;
         uploaded_document_summary.value = summary.join(' ');
+        uploaded_document_id.value = doc_id;
     } catch (error) {
         console.error('Error sending POST request:', error);
     }
@@ -128,6 +137,7 @@ try {
     console.error('Error sending GET request:', error);
 }
 }
+
 async function loadUserDocument(doc_id){
     let doc = await getUserDocument(doc_id);
     uploaded_document.value = doc.file_data;
@@ -144,6 +154,10 @@ async function loadUserDocument(doc_id){
 <template>
     <div>
         <Navbar />
+
+        <!-- SELECTION VIEW -->
+
+        <!-- Mobile only -->
         <button data-drawer-target="default-sidebar" data-drawer-toggle="default-sidebar"
             aria-controls="default-sidebar" type="button"
             class="inline-flex items-center p-2 mt-2 ms-3 text-sm text-gray-500 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600">
@@ -156,39 +170,31 @@ async function loadUserDocument(doc_id){
             </svg>
         </button>
 
+        <!-- Previously uploaded document list -->
         <aside v-if="uploaded_document == null" id="default-sidebar"
             class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0"
             aria-label="Sidebar">
-            <div class="h-full px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800">
-                <ul class="space-y-2 font-medium" v-if="user_docs != null">
-                    <li>
-                        <a href="#"
-                            class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-
-                            <span
-                                class="self-center text-2xl ms-4 font-semibold whitespace-nowrap dark:text-white">Source
-                                Seeker</span>
-                        </a>
-                    </li>
+            <div class="h-full px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800 border mt-20">
+                <p v-if="user_docs.length == 0" class="text-center text-gray-500 mt-14 text-md">
+                    Your previously uploaded documents will appear here.
+                </p>
+                <ul class="space-y-2 font-medium" v-if="user_docs != []">
                     <li v-for="doc in user_docs">
 
                         <a href="#" @click="loadUserDocument(doc.id)"
                             class="block max-w-sm p-2 bg-white border border-gray-400 rounded-lg shadow-sm hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
                             <a href="#"
-                                class="flex items-center p-2 text-gray-900 transition duration-75 rounded-lg group">
+                                class="flex items-center p-1 text-gray-900 transition duration-75 rounded-lg group">
                                 <svg class="shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"
                                     aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor"
                                     viewBox="0 0 16 20">
                                     <path
                                         d="M16 14V2a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v15a3 3 0 0 0 3 3h12a1 1 0 0 0 0-2h-1v-2a2 2 0 0 0 2-2ZM4 2h2v12H4V2Zm8 16H3a1 1 0 0 1 0-2h9v2Z" />
                                 </svg>
-                                <span class="ms-3 text-s">{{ doc.file_name }}</span>
+                                <span class="ms-1 text-s">{{ doc.file_name.substring(0,20) }}</span>
                             </a>
                             <span class="ms-0 text-xs">{{ doc.summary_teaser }}</span>
                         </a>
-
-
-
                     </li>
                 </ul>
             </div>
@@ -225,18 +231,17 @@ async function loadUserDocument(doc_id){
         </div>
 
 
-
+        <!-- DOCUMENT VIEW -->
 
 
         <div v-if="uploaded_document != null">
 
-            <div class="columns-2">
-                <div class="w-full text-center">
+            <div class="flex">
+                <div class="w-1/2 text-center">
                     <PDFViewer :file="uploaded_document" :search_term="search_term_param" />
                 </div>
 
-
-                <div class="py-4 pe-6">
+                <div class="py-4 pe-6 w-1/2">
                     <div
                         class="w-full bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
                         <ul class="flex flex-wrap text-sm font-medium text-center text-gray-500 border-b border-gray-200 rounded-t-lg bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800"
@@ -284,14 +289,18 @@ async function loadUserDocument(doc_id){
 
 
                                 <p class="mb-3 text-gray-800 dark:text-gray-800"
-                                    v-if="uploaded_document_summary_sentences != null">
+                                    v-if="uploaded_document_summary_sentences != null && false">
                                     {{ uploaded_document_summary }}
                                 </p>
-                                
-                                <p class="mb-3 text-gray-800 dark:text-gray-800"
-                                    v-if="uploaded_document_summary_sentences != null">
-                                    <span v-for="sentence in uploaded_document_summary_sentences" class="border border-gray-300 hover:bg-blue-300 cursor-pointer">{{ sentence }}</span>
-                                </p>
+
+                                <div v-if="sentences_list_view">
+                                    <p class="mb-3 text-gray-800 dark:text-gray-800"
+                                        v-if="uploaded_document_summary_sentences != null">
+                                        <span v-for="sentence in uploaded_document_summary_sentences"
+                                            class="hover:text-blue-600 cursor-pointer">{{ sentence
+                                            }}</span>
+                                    </p>
+                                </div>
 
                                 <a href="#" @click="reset"
                                     class="inline-flex mt-2 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">

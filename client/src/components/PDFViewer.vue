@@ -39,10 +39,22 @@ let context = null;
 let highlightCanvas = ref(null);
 let highlightContext = null;
 
-let pageRendering = false; // Check conflict
-let pageNumPending = null; // Cache waiting page number
+let dyn_scale = ref(0.1);
+let scale_divisor = 2000;
+
+const updateScale = () => {
+    if (pdf != null) {
+        dyn_scale.value = Math.min(1, Math.max(0.3, window.innerWidth / scale_divisor));
+        if (current_page.value != null) {
+            renderPage(current_page.value);
+        }
+    }
+};
 
 onMounted(() => {
+    updateScale(); // Set initial scale
+    window.addEventListener("resize", updateScale);
+
     initFlowbite();
 
     canvas.value = document.getElementById('the-canvas');
@@ -52,8 +64,8 @@ onMounted(() => {
     highlightContext = highlightCanvas.value.getContext('2d');
 
     loadDocument();
-})
-
+    dyn_scale.value = Math.min(1, Math.max(0.3, window.innerWidth / scale_divisor));
+});
 
 watch(() => props.file, async () => {
     if (props.file) {
@@ -118,7 +130,7 @@ async function getFirstOccurrence() {
 
 function renderPage(pageNumber) {
     pdf.getPage(pageNumber).then(function (page) {
-        const viewport = page.getViewport({ scale: 0.9 });
+        const viewport = page.getViewport({ scale: dyn_scale.value });
         canvas.value.height = viewport.height;
         canvas.value.width = viewport.width;
         highlightCanvas.value.height = viewport.height;
