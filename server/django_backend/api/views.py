@@ -1,12 +1,14 @@
 import base64
 import json
 
+import icecream
+import torch
+import transformers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 import os
 
-from nltk import sent_tokenize
 from pymupdf import pymupdf
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -14,11 +16,17 @@ from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 import io
 import re
 from llama_cpp import Llama
 import nltk
+from torch.backends import mps
+
+from .helper import get_meta_data, store_summary
+from .model_prompts import fix, chat_prompt_llama_8b
+
+print(torch.backends.mps.is_available())
 
 from .models import Document
 
@@ -57,7 +65,6 @@ def get_highlighted_pdf(request):
         # highlighted_pdf_path = os.path.join('api/pdf', 'highlighted_' + os.path.basename("api/pdf/out.pdf"))
         # print(str(highlighted_pdf_path))
         # document.save(highlighted_pdf_path)
-
         buffer = io.BytesIO()
         document.save(buffer)
         buffer.seek(0)
@@ -68,54 +75,9 @@ def get_highlighted_pdf(request):
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-def summarize(doc_id, model):
-    doc = Document.objects.get(id=doc_id)
-    data_url = base64.b64decode(doc.file_data.split(',')[1])
-    document = pymupdf.open("pdf", data_url)
-    document_text = ""
-
-    for page_num in range(len(document)):
-        page = document.load_page(page_num)
-        document_text += page.get_text("text")
-
-    summary = ""
-
-    match model:
-        case 'facebook/bart-large-cnn':
-            print("Generating summary with facebook/bart-large-cnn")
-            summary = prompt_bart_large_cnn(document_text)
-
-        case 'Meta-Llama-3.1-8B-Instruct-Q8_0.gguf':
-            print("Generating summary with Meta-Llama-3.1-8B-Instruct-Q8_0")
-            summary = prompt_llama_8b(document_text)
-            if not summary.endswith(('.', '!', '?')):
-                summary += "..."
-
-
-        case 'llama-bart-combined':
-            print("Generating summary with combined pipeline")
-            pre_summary = prompt_llama_8b(document_text, max_tokens=300)
-            summary = prompt_bart_large_cnn(pre_summary)
-
-        case _:
-            pass
-
-    nltk.download('punkt')
-    nltk.download('punkt_tab')
-    summary_sentences = sent_tokenize(summary)
-
-    if doc != "":
-        doc.summary = json.dumps(summary_sentences)
-        doc.save()
-
-    return summary_sentences
-
-
 @api_view(['POST'])
-def store_and_summarize(request):
-
+def store_and_summarize_document(request):
     if request.method == 'POST':
-
         print("Storing document")
         #request_data = json.loads(json.dumps(request.data))
         #request_data = JSONParser().parse(request.data)
@@ -125,12 +87,12 @@ def store_and_summarize(request):
         doc = Document.objects.create(
             user=request.user,
             file_name=file_name,
-            file_data=file_data
+            file_data=file_data,
+            chat_history=json.dumps([])
         )
 
-        summary = summarize(doc.id, request.data["model"])
-        return Response({"doc_id": doc.id, "summary": summary}, status=status.HTTP_200_OK)
-
+        store_summary(doc.id, request.data["model"])
+        return Response({"id": doc.id}, status=status.HTTP_200_OK)
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -142,73 +104,75 @@ def get_user_documents(request):
         docs = Document.objects.filter(user_id=user.id)
         doc_list = []
         for d in docs:
+            first_sentence = ""
+            if d.summary:
+                first_elem = json.loads(d.summary)[0]
+                first_sentence = first_elem['sentence']
+
             doc_list.append({'id': d.id,
                              'file_name': d.file_name,
-                             'summary_teaser': "" if d.summary is None else json.loads(d.summary)[0][:60] + '...'})
+                             'summary_teaser': first_sentence[:60] + '...'})
         return Response({'user_docs': doc_list}, status=status.HTTP_200_OK)
 
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['GET'])
 def get_user_document(request, doc_id):
-
     if request.method == 'GET':
         user = User.objects.get(id=request.user.id)
         doc = Document.objects.get(id=doc_id, user_id=user.id)
+
+        if not doc:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        num_pages, title, author = get_meta_data(doc.id)
+
         return Response(
             {
                 'id': doc.id,
                 'file_name': doc.file_name,
                 'file_data': doc.file_data,
-                'summary': "" if doc.summary is None else json.loads(doc.summary)
+                'summary': "" if doc.summary is None else json.loads(doc.summary),
+                "num_pages": num_pages,
+                "title": title,
+                "author": author,
+                "chat_history": json.loads(doc.chat_history)
             }
         , status=status.HTTP_200_OK)
 
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+@api_view(['DELETE'])
+def delete_user_document(request, doc_id):
+    user = User.objects.get(id=request.user.id)
+    if request.method == 'DELETE':
+        doc = Document.objects.get(id=doc_id, user_id=user.id)
 
-def fix(match):
-    return match.group(1) + match.group(2)
+        if not doc:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
-def prompt_llama_8b(document_text, ctx=4096, max_tokens=200):
-    llm = Llama(
-        model_path="/home/ia0n/bakk/Bachelor_Project/server/django_backend/api/llms/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf",
-        n_ctx=ctx,
-        # n_threads=14,
-    )
+        doc.delete()
+        return Response(status=status.HTTP_200_OK)
+    return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    source = document_text[:2000]
-    summary = llm(
-        f'I want you to summarize a text that i will give you. Do not do anything else. Do not mention or include any parts of the prompt in your answer. Do not cite any pages or persons and just give information about the text itself. End your output as soon as you finished summarizing and do not say anything else. Do not tell me you are ready for the next text or say anything else after finishing the summary. This is the text to process: "{source}"',
-        max_tokens=max_tokens)
-    summary = summary['choices'][0]['text']
-
-    if summary[0:3] == ' . ':
-        summary = summary[3:]
-    elif summary[0:2] == '. ':
-        summary = summary[2:]
-    return summary
-
-def prompt_bart_large_cnn(document_text):
-    summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device="cpu")
-    document_text = document_text.replace("\n", " ")
-    document_text = re.sub(r'\s+', ' ', document_text).strip()
-    document_text = re.sub(r'[^a-zA-Z0-9\s.,:?!]+', '', document_text)[:3000]
-    summary = summarizer(document_text, max_length=1200, min_length=100, do_sample=False)[0]['summary_text']
-    return summary
+@api_view(['POST'])
+def send_chat(request):
+    if request.method == 'POST':
+        doc_id = request.data["doc_id"]
+        doc = Document.objects.get(id=doc_id, user_id=request.user.id)
+        if not doc:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
+        chat_msg = request.data["chat_msg"]
+        answer = chat_prompt_llama_8b(doc, chat_msg)
 
+        chat_history_json = json.loads(doc.chat_history)
+        chat_history_json.append({"role": "user", "content": chat_msg})
+        chat_history_json.append({"role": "system", "content": answer})
+        doc.chat_history = json.dumps(chat_history_json)
+        doc.save()
 
+        return Response({"chat_history": chat_history_json}, status=status.HTTP_200_OK)
 
-
-
-
-
-
-
-
-
-
-
-
+    return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)

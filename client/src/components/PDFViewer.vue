@@ -1,14 +1,14 @@
 <template>
     <button type="button" @click="prevPage()"
         class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-        < </button>
+        ← </button>
             <button type="button"
                 class="text-gray-900 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-full text-sm px-5 py-2.5 me-2 mb-2 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700">
                 {{ current_page }}
             </button>
             <button type="button" @click="nextPage()"
                 class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                >
+                →
             </button>
             <div class="container">
                 <div id="pdf-container">
@@ -44,7 +44,7 @@ let scale_divisor = 2000;
 
 const updateScale = () => {
     if (pdf != null) {
-        dyn_scale.value = Math.min(1, Math.max(0.3, window.innerWidth / scale_divisor));
+        dyn_scale.value = Math.min(0.38, Math.max(0.1, window.innerWidth / scale_divisor));
         if (current_page.value != null) {
             renderPage(current_page.value);
         }
@@ -64,7 +64,7 @@ onMounted(() => {
     highlightContext = highlightCanvas.value.getContext('2d');
 
     loadDocument();
-    dyn_scale.value = Math.min(1, Math.max(0.3, window.innerWidth / scale_divisor));
+    dyn_scale.value = Math.min(0.38, Math.max(0.1, window.innerWidth / scale_divisor));
 });
 
 watch(() => props.file, async () => {
@@ -130,11 +130,17 @@ async function getFirstOccurrence() {
 
 function renderPage(pageNumber) {
     pdf.getPage(pageNumber).then(function (page) {
-        const viewport = page.getViewport({ scale: dyn_scale.value });
+        const viewport = page.getViewport({ scale: 2 });
         canvas.value.height = viewport.height;
         canvas.value.width = viewport.width;
         highlightCanvas.value.height = viewport.height;
         highlightCanvas.value.width = viewport.width;
+        console.log(dyn_scale);
+
+        canvas.value.style.width = viewport.width * dyn_scale.value + 'px';
+
+
+
 
         const renderContext = {
             canvasContext: context,

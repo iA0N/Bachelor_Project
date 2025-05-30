@@ -22,6 +22,7 @@
             <option value="facebook/bart-large-cnn" selected>Bart Large CNN (Fast)</option>
             <option value="Meta-Llama-3.1-8B-Instruct-Q8_0.gguf">Meta Llama 3.1 8B (Slower)</option>
             <option value="llama-bart-combined">Combined pipeline (Slow)</option>
+            <option value="demo">Demo</option>
             
         </select>
     </div>

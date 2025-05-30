@@ -1,0 +1,78 @@
+[
+    {
+        "title": "Future employment selection methods: evaluating social networking web sites",
+        "summary": 
+        [
+            {
+                "sentence": "The paper explores the impact of leadership behaviors on employee motivation and organizational outcomes.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "Leadership behaviors play a critical role in shaping employee motivation and ultimately influence key organizational outcomes such as productivity and job satisfaction.",
+                        "confidence_score": 0.92
+                    },
+                    {
+                        "candidate": "This study examines how various leadership styles affect employee engagement, motivation, and the overall performance of organizations.",
+                        "confidence_score": 0.89
+                    }
+                ]
+            },
+            {
+                "sentence": "It discusses different leadership theories and their effectiveness in various workplace contexts.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "The effectiveness of different leadership styles depends on factors such as industry type, team dynamics, and company culture.",
+                        "confidence_score": 0.87
+                    },
+                    {
+                        "candidate": "A review of leadership theories, including transformational, transactional, and servant leadership, highlights their applicability in different organizational settings.",
+                        "confidence_score": 0.91
+                    }
+                ]
+            },
+            {
+                "sentence": "The study highlights empirical research findings that support the relationship between transformational leadership and employee engagement.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "Empirical evidence suggests that transformational leadership significantly enhances employee engagement by fostering a sense of purpose and commitment.",
+                        "confidence_score": 0.93
+                    },
+                    {
+                        "candidate": "Multiple studies have shown that organizations led by transformational leaders experience higher levels of employee satisfaction and motivation.",
+                        "confidence_score": 0.90
+                    }
+                ]
+            },
+            {
+                "sentence": "It also examines potential moderating factors, such as organizational culture and individual differences, that influence leadership effectiveness.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "The impact of leadership is not uniform; variables such as organizational culture and personal traits of employees can moderate its effects.",
+                        "confidence_score": 0.92
+                    },
+                    {
+                        "candidate": "Leadership effectiveness is shaped by contextual elements, including company values, employee expectations, and external market conditions.",
+                        "confidence_score": 0.88
+                    }
+                ]
+            },
+            {
+                "sentence": "The paper concludes with practical implications for managers and recommendations for future research.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "Based on the findings, this paper provides actionable recommendations for managers seeking to improve leadership effectiveness in their organizations.",
+                        "confidence_score": 0.91
+                    },
+                    {
+                        "candidate": "Future research should explore the long-term impact of leadership development programs on employee performance and retention.",
+                        "confidence_score": 0.89
+                    }
+                ]
+            }
+        ]
+    }
+]

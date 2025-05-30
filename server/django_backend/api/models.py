@@ -9,3 +9,4 @@ class Document(models.Model):
     file_data = models.TextField()  # Store PDF as BLOB in DB
     summary = models.TextField(blank=True, null=True)  # Store summary
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    chat_history = models.TextField(blank=True, null=True)
