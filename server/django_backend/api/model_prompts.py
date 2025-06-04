@@ -68,6 +68,8 @@ def prompt_bart_large_cnn(document_text):
     return summary
 
 def chat_prompt_llama_8b(document_obj, prompt, ):
+    # https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
+
     llm = Llama(
         model_path=f"{os.getcwd()}/api/llms/Meta-Llama-3.1-8B-Instruct-Q6_K.gguf",
         n_ctx=7000

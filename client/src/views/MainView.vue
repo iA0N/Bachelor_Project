@@ -19,7 +19,7 @@ let current_document_title = null;
 let search_term = ref(""); // Updated through v model
 let search_term_param = ref(""); // Only updated on search hit, passed down to child component
 let username = "";
-let csrf_token = 'Lu2HWkhF2R7twhw9g06nX5TJqEjq9hGC';
+let csrf_token = '4WpsKf3W9FH5dJ9cEXlT54P1rpyJVMb7';
 let user_docs = ref([]);
 let filtered_user_docs = ref([]);
 let selected_sencente = ref(null);
@@ -247,7 +247,7 @@ async function deleteUserDocument(doc_id) {
     <div class="overflow-hidden">
         <div ref="top_of_page"></div>
         <Navbar />
-        
+
 
         <!-- SELECTION VIEW -->
 
@@ -284,8 +284,7 @@ async function deleteUserDocument(doc_id) {
                 </div>
                 <ul class="space-y-2 font-medium" v-if="user_docs != []">
                     <li v-for="doc in filtered_user_docs">
-
-                        <a href="#" @click="loadUserDocument(doc.id)"
+                        <div href="#" @click="loadUserDocument(doc.id)"
                             class="block max-w-sm p-2 bg-white border border-gray-400 rounded-lg shadow-sm hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
                             <a href="#"
                                 class="flex items-center p-1 text-gray-900 transition duration-75 rounded-lg group">
@@ -299,7 +298,7 @@ async function deleteUserDocument(doc_id) {
                                 <span class="text-end w-full" @click.stop="deleteUserDocument(doc.id)">ⓧ</span>
                             </a>
                             <span class="ms-0 text-xs">{{ doc.summary_teaser }}</span>
-                        </a>
+                        </div>
                     </li>
                 </ul>
             </div>
@@ -373,7 +372,7 @@ async function deleteUserDocument(doc_id) {
                         </ul>
                     </div>
                     <div id="default-tab-content">
-                        <div class="hidden p-4 bg-white rounded-lg md:p-8 dark:bg-gray-800" id="document"
+                        <div class="hidden p-8 bg-white rounded-lg pb-6 dark:bg-gray-800" id="document"
                             role="tabpanel" aria-labelledby="document-tab">
                             <h2 class="mb-3 text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
                                 Document Information</h2>
@@ -425,10 +424,9 @@ async function deleteUserDocument(doc_id) {
                                     the site.</span>
                             </div>
 
-
                             <a href="#" @click="reset"
                                 v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION"
-                                class="inline-flex mt-2 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">
+                                class="inline-flex mt-4 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">
                                 Back to document selection
                                 <svg class=" w-2.5 h-2.5 ms-2 rtl:rotate-180" aria-hidden="true"
                                     xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
@@ -437,70 +435,85 @@ async function deleteUserDocument(doc_id) {
                                 </svg>
                             </a>
                         </div>
-                        <div class="hidden p-4 bg-white rounded-lg md:p-8 dark:bg-gray-800" id="search" role="tabpanel"
+                        <div class="hidden p-8 bg-white rounded-lg pb-6 dark:bg-gray-800" id="search" role="tabpanel"
                             aria-labelledby="search-tab">
-                            <form class="mx-auto" @submit.prevent="onSubmit">
-                                <label for="defaultSearch"
-                                    class="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">Search</label>
-                                <div class="relative">
+                            <div v-if="selected_sencente != null">
+                                <form class="mx-auto" @submit.prevent="onSubmit">
+                                    <label for="defaultSearch"
+                                        class="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">Search</label>
+                                    <div class="relative">
+                                        <label for="message"
+                                            class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                            Your selection
+                                        </label>
+                                        <div class="text-gray-600 border border-gray-300 rounded-lg bg-gray-100 p-3">
+                                            <span>
+                                                {{ selected_sencente }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </form>
+
+                                <hr class="mt-4">
+
+                                <div>
                                     <label for="message"
-                                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                                        Your selection
+                                        class="block mb-2 mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                                        Most probable information sources
                                     </label>
-                                    <div class="text-gray-600 border border-gray-300 rounded-lg bg-gray-100 p-3">
-                                        <span>
-                                            {{ selected_sencente }}
-                                        </span>
+
+                                    <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
+                                        <table
+                                            class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                            <thead
+                                                class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                                                <tr>
+                                                    <th scope="col" class="px-6 py-3">
+                                                        Confidence Score
+                                                    </th>
+                                                    <th scope="col" class="px-6 py-3">
+                                                        Sentence
+                                                    </th>
+                                                    <th scope="col" class="px-6 py-3">
+                                                        Action
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="candidate in selected_sencente_candidates"
+                                                    class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                                    <th scope="row"
+                                                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                                        {{ candidate.confidence_score }}
+                                                    </th>
+                                                    <td class="px-6 py-4">
+                                                        {{ candidate.candidate }}
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <a href="#" @click="findInDocument(candidate.candidate)"
+                                                            class="font-medium text-blue-600 dark:text-blue-500 hover:underline">
+                                                            Show
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            </form>
-
-                            <hr class="mt-4">
-
-                            <div>
-                                <label for="message"
-                                    class="block mb-2 mt-2 text-sm font-medium text-gray-900 dark:text-white">
-                                    Most probable information sources
-                                </label>
-
-                                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                                    <table
-                                        class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                        <thead
-                                            class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
-                                            <tr>
-                                                <th scope="col" class="px-6 py-3">
-                                                    Confidence Score
-                                                </th>
-                                                <th scope="col" class="px-6 py-3">
-                                                    Sentence
-                                                </th>
-                                                <th scope="col" class="px-6 py-3">
-                                                    Action
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-for="candidate in selected_sencente_candidates"
-                                                class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                                <th scope="row"
-                                                    class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                                    {{ candidate.confidence_score }}
-                                                </th>
-                                                <td class="px-6 py-4">
-                                                    {{ candidate.candidate }}
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <a href="#" @click="findInDocument(candidate.candidate)"
-                                                        class="font-medium text-blue-600 dark:text-blue-500 hover:underline">
-                                                        Show
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
                             </div>
+                            <div v-else>
+                                <p class="text-sm font-normal text-gray-800">Please select a sentence from the generated summary in order to search for source candidates.</p>
+                            </div>
+                            <a href="#" @click="reset"
+                                v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION"
+                                class="inline-flex mt-4 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">
+                                Back to document selection
+                                <svg class=" w-2.5 h-2.5 ms-2 rtl:rotate-180" aria-hidden="true"
+                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                        stroke-width="2" d="m1 9 4-4-4-4" />
+                                </svg>
+                            </a>
                         </div>
 
                         <div class="hidden p-2 bg-white rounded-lg" id="chat" role="tabpanel"

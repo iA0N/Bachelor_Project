@@ -1,21 +1,42 @@
 <template>
-    <button type="button" @click="prevPage()"
-        class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-        ← </button>
-            <button type="button"
-                class="text-gray-900 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-full text-sm px-5 py-2.5 me-2 mb-2 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700">
-                {{ current_page }}
-            </button>
-            <button type="button" @click="nextPage()"
-                class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                →
-            </button>
-            <div class="container">
-                <div id="pdf-container">
-                    <canvas id="the-canvas" class="mx-auto"></canvas>
-                    <canvas id="highlight-canvas"></canvas>
-                </div>
-            </div>
+    <div>
+                <button type="button" @click="zoomIn()"
+            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-2 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+            <svg class="w-4 h-4 text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                fill="none" viewBox="0 0 26 26">
+                <path stroke="currentColor" stroke-linecap="round" stroke-width="2"
+                    d="m21 21-3.5-3.5M10 7v6m-3-3h6m4 0a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+            </svg>
+
+        </button>
+        <button type="button" @click="zoomOut()"
+            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-2 py-2 text-center me-52 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+            <svg class="w-4 h-4 text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-width="2"
+                    d="m21 21-3.5-3.5M7 10h6m4 0a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+            </svg>
+        </button>
+        
+        <button type="button" @click="prevPage()"
+            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+            ← </button>
+        <button type="button"
+            class="text-gray-900 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-full text-sm px-5 py-2.5 me-2 mb-2 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700">
+            {{ current_page }}
+        </button>
+        <button type="button" @click="nextPage()"
+            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+            →
+        </button>
+    </div>
+
+    <div class="container">
+        <div id="pdf-container">
+            <canvas id="the-canvas" class="mx-auto"></canvas>
+            <canvas id="highlight-canvas"></canvas>
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -41,10 +62,21 @@ let highlightContext = null;
 
 let dyn_scale = ref(0.1);
 let scale_divisor = 2000;
+let zoom = 0;
+let total_scale = ref(0.1);
+
+function updateTotalScale() {
+    total_scale.value = dyn_scale.value + zoom;
+}
+
+function updateDynScale() {
+    dyn_scale.value = window.innerWidth / 4000;
+}
 
 const updateScale = () => {
     if (pdf != null) {
-        dyn_scale.value = Math.min(0.38, Math.max(0.1, window.innerWidth / scale_divisor));
+        updateDynScale();
+        updateTotalScale();
         if (current_page.value != null) {
             renderPage(current_page.value);
         }
@@ -64,7 +96,11 @@ onMounted(() => {
     highlightContext = highlightCanvas.value.getContext('2d');
 
     loadDocument();
-    dyn_scale.value = Math.min(0.38, Math.max(0.1, window.innerWidth / scale_divisor));
+    updateDynScale();
+    updateTotalScale();
+    console.log("Chat divisor:");
+    console.log(window.devicePixelRatio);
+    console.log(window.innerWidth);
 });
 
 watch(() => props.file, async () => {
@@ -94,6 +130,18 @@ function nextPage() {
     } else {
         current_page.value = 1;
     }
+    renderPage(current_page.value);
+}
+
+function zoomIn() {
+    zoom += 0.1;
+    updateTotalScale();
+    renderPage(current_page.value);
+}
+
+function zoomOut() {
+    zoom -= 0.1;
+    updateTotalScale();
     renderPage(current_page.value);
 }
 
@@ -135,12 +183,8 @@ function renderPage(pageNumber) {
         canvas.value.width = viewport.width;
         highlightCanvas.value.height = viewport.height;
         highlightCanvas.value.width = viewport.width;
-        console.log(dyn_scale);
 
-        canvas.value.style.width = viewport.width * dyn_scale.value + 'px';
-
-
-
+        canvas.value.style.width = viewport.width * total_scale.value + 'px';
 
         const renderContext = {
             canvasContext: context,
