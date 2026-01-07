@@ -1,0 +1,78 @@
+[
+    {
+        "title": "Future employment selection methods: evaluating social networking web sites",
+        "summary": 
+        [
+            {
+                "sentence": "The study investigates whether employers can reliably and validly use personal information from social networking websites (SNWs), such as Facebook, to assess applicants' personality, intelligence, and performance for employment selection purposes.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "The purpose of this paper is to examine the feasibility of using applicant personal information currently available on SNWs to improve employment selection decisions.",
+                        "confidence_score": 0.98
+                    },
+                    {
+                        "candidate": "Specifically, can trained judges consistently and accurately assess important organizational characteristics such as personality, intelligence, and performance using only a target's SNW information?",
+                        "confidence_score": 0.94
+                    }
+                ]
+            },
+            {
+                "sentence": "Results indicate that trained raters can consistently and accurately evaluate these characteristics from SNW profiles, with higher accuracy shown by raters who are more intelligent and emotionally stable.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "Based solely on viewing social networking profiles, judges are consistent in their ratings across subjects and typically able to accurately distinguish high from low performers.",
+                        "confidence_score": 0.95
+                    },
+                    {
+                        "candidate": "Similarly, raters who are the most emotionally stable also rate more accurately for conscientiousness, emotional stability, openness, and performance.",
+                        "confidence_score": 0.93
+                    }
+                ]
+            },
+            {
+                "sentence": "The paper suggests that SNWs may offer a unique and potentially more authentic assessment of personality and behavior compared to traditional methods like interviews and self-reports, as they reflect typical rather than maximal performance.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "Employment selection methods using social networking are likely to be based on 'typical' behaviors, and therefore may be more accurate than other selection methods.",
+                        "confidence_score": 0.95
+                    },
+                    {
+                        "candidate": "At a minimum, this method should provide information that is distinct from 'maximal' selection methods, thereby allowing for a stronger likelihood that using SNWs will yield incremental validity beyond established methods of employment selection.",
+                        "confidence_score": 0.92
+                    }
+                ]
+            },
+            {
+                "sentence": "Despite promising findings, the authors warn against the immediate use of SNWs in hiring, emphasizing the need for further validation and highlighting potential legal and ethical risks related to privacy and discrimination.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "We hope that the results of this preliminary study will not be used by organizations to support their use of SNWs in employment selection.",
+                        "confidence_score": 0.97
+                    },
+                    {
+                        "candidate": "Without further validation in a variety of studies, with larger samples and in a variety of organizational contexts, caution should be used when interpreting the implications of this study.",
+                        "confidence_score": 0.94
+                    }
+                ]
+            },
+            {
+                "sentence": "The authors conclude that while SNWs could become efficient tools for evaluating job-relevant traits, organizations must carefully consider both the validity of the information used and the potential for discrimination against protected groups.",
+                "candidates": 
+                [
+                    {
+                        "candidate": "First, is the organization assessing (or could be perceived as assessing) information which could lead to discrimination against a legally protected group?",
+                        "confidence_score": 0.96
+                    },
+                    {
+                        "candidate": "Second, is the specific social networking information used to help make a hiring decision valid in determining who will perform better on the job?",
+                        "confidence_score": 0.95
+                    }
+                ]
+            }
+        ]
+    }
+]
