@@ -27,8 +27,6 @@ SECRET_KEY = 'super_secret_key'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -183,3 +181,10 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 APPEND_SLASH = True
+
+LOGIN_REDIRECT_URL = 'http://localhost:5173'
+LOGOUT_REDIRECT_URL = 'http://localhost:5173'
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_EMAIL_REQUIRED = False
+

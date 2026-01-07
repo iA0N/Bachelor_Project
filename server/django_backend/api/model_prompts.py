@@ -29,9 +29,11 @@ User = get_user_model()
 def fix(match):
     return match.group(1) + match.group(2)
 
-def prompt_llama_8b(document_text):
-    llm = Llama(
-        model_path=f"{os.getcwd()}/api/llms/Meta-Llama-3.1-8B-Instruct-Q6_K.gguf",
+def prompt_llama_model(document_text, repo_id="bartowski/Meta-Llama-3.1-8B-Instruct-GGUF", filename="Meta-Llama-3.1-8B-Instruct-Q6_K.gguf"):
+    # Currently only supporting llama
+    llm = Llama.from_pretrained(
+        repo_id=repo_id,
+        filename=filename,
         n_ctx=4096
     )
 
@@ -67,15 +69,14 @@ def prompt_bart_large_cnn(document_text):
     summary = summarizer(document_text, max_length=1200, min_length=100, do_sample=False)[0]['summary_text']
     return summary
 
-def chat_prompt_llama_8b(document_obj, prompt, ):
-    # https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
-
-    llm = Llama(
-        model_path=f"{os.getcwd()}/api/llms/Meta-Llama-3.1-8B-Instruct-Q6_K.gguf",
+def chat_prompt_llama(document_obj, prompt, repo_id, filename):
+    llm = Llama.from_pretrained(
+        repo_id=repo_id,
+        filename=filename,
         n_ctx=7000
     )
 
-    data_url = base64.b64decode(document_obj.file_data.split(',')[1])
+    data_url = document_obj.file_data
     document = pymupdf.open("pdf", data_url)
     document_text = ""
 

@@ -4,8 +4,8 @@ import { ref } from 'vue'
 <template>
   <nav class="bg-white border-gray-200 dark:bg-gray-900 border-b-2 border-gray dark:border-b-0">
     <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
-      <a href="https://flowbite.com/" class="flex items-center space-x-3 rtl:space-x-reverse">
-        <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white ms-6">Source Seeker</span>
+      <a href="http://localhost:5173" class="flex items-center space-x-3 rtl:space-x-reverse">
+        <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white ms-6">The Sourcerer ✨</span>
       </a>
       <button data-collapse-toggle="navbar-default" type="button"
         class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"

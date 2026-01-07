@@ -10,30 +10,33 @@ import { marked } from 'marked';
 
 let user_documents_search_term = ref("");
 let current_document = ref(null);
+let current_document_unaltered = ref(null);
 let current_document_summary_sentences = ref(null);
 let current_document_id = ref(null);
 let current_document_file_name = null;
 let current_document_num_pages = null;
 let current_document_author = null;
 let current_document_title = null;
+let current_document_used_model = null;
 let search_term = ref(""); // Updated through v model
 let search_term_param = ref(""); // Only updated on search hit, passed down to child component
 let username = "";
-let csrf_token = '4WpsKf3W9FH5dJ9cEXlT54P1rpyJVMb7';
+let csrf_token = '';
 let user_docs = ref([]);
 let filtered_user_docs = ref([]);
-let selected_sencente = ref(null);
-let selected_sencente_candidates = ref([]);
 let selected_document_chat = ref([]);
 let current_chat_message = ref("");
 let chat_history = ref([]);
 let message_loading = ref(false);
+let selected_page = ref(1);
+let user_models = ref([]);
+let selected_summary_sentence_index = ref(null);
+let selected_summary_sentence_candidate_index = ref(null);
 
 let main_view_state = ref(MainViewState.WAITING_FOR_USER_DOCUMENT_SELECTION);
 
 const chat_end = useTemplateRef('chat_end');
 const top_of_page = useTemplateRef('top_of_page');
-const search_button = useTemplateRef('search_button');
 
 
 reset()
@@ -48,22 +51,66 @@ watch(user_documents_search_term, (current_user_documents_search_term) => {
     filtered_user_docs.value = user_docs.value.filter(item => item.file_name.toLowerCase().includes(user_documents_search_term_lower_case));
 })
 
-
-async function findInDocument(candidate) {
-    await get_highlighted_pdf("who share interests and activities");
-    search_term_param.value = "who share interests and activities";
+async function check_login() {
+    try {
+        const res = await axios.get('http://localhost:8000/api/v1/login_status', {
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        });
+        let login_status = res.data['login_status'];
+        console.log(login_status);
+        if (login_status == false) {
+            window.location.replace("http://localhost:8000");
+        }
+    } catch (error) {
+        console.error('Error sending GET request:', error);
+    }
 }
 
-async function searchForSource(sentence) {
-    selected_sencente.value = sentence.sentence;
-    selected_sencente_candidates.value = sentence.candidates;
-    console.log(sentence);
-    search_button.value.click();
+check_login();
+
+async function get_csrf_token() {
+    try {
+        const res = await axios.get('http://localhost:8000/api/v1/csrf', {
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        });
+        csrf_token = res.data['csrf_token'];
+        console.log(csrf_token);
+    } catch (error) {
+        console.error('Error sending GET request:', error);
+    }
+}
+
+get_csrf_token();
+
+async function findInDocument(candidate) {
+    await get_highlighted_pdf(candidate);
+    search_term_param.value = candidate;
+}
+
+async function searchForSource(index) {
+    selected_summary_sentence_index.value = index;
+    let selected_sentence = current_document_summary_sentences.value[index];
+    selected_sentence.candidates.sort((a, b) => b.confidence_score - a.confidence_score);
+    selected_summary_sentence_candidate_index.value = 0;
+    findInDocument(selected_sentence.candidates[0].candidate);
 }
 
 const fileUploadedEvent = async (file, dataUrl, model) => {
     storeDocumentAndSummarize(file.name, dataUrl, model)
-    //console.log(file);
+};
+
+const newModelEvent = async (repo_id, filename) => {
+    createNewModel(repo_id, filename)
+};
+
+const removeModelEvent = async (model) => {
+    removeModel(model)
 };
 
 async function clear_current_document_data() {
@@ -73,11 +120,13 @@ async function clear_current_document_data() {
     current_document_file_name = null;
     current_document_num_pages = null;
     current_document_author = null;
+    current_document_used_model = null;
     current_document_title = null;
+    current_document_unaltered.value = null;
     search_term.value = "";
     search_term_param.value = "";
-    selected_sencente.value = null;
-    selected_sencente_candidates.value = null;
+    selected_summary_sentence_index.value = null;
+    selected_summary_sentence_candidate_index.value = null;
     selected_document_chat.value = null;
     current_chat_message.value = "";
     chat_history.value = [];
@@ -110,6 +159,7 @@ async function get_highlighted_pdf(candidate) {
             },
         });
         let returned_data_url = res.data['data_url'];
+        selected_page.value = res.data['page_num_start'];
         current_document.value = returned_data_url;
     } catch (error) {
         console.error('Error sending POST request:', error);
@@ -141,6 +191,48 @@ async function storeDocumentAndSummarize(file_name, document_data, model) {
     }
 }
 
+async function createNewModel(repo_id, filename) {
+    const payload = {
+        repo_id: repo_id,
+        filename: filename
+    };
+
+    try {
+        const res = await axios.post('http://localhost:8000/api/v1/create_user_model', payload, {
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFTOKEN': csrf_token
+            },
+        });
+        console.log(res.data);
+        getUserModels();
+    } catch (error) {
+        console.error('Error sending POST request:', error);
+    }
+}
+
+async function removeModel(model) {
+    const payload = {
+        model: model,
+    };
+
+    try {
+        const res = await axios.delete('http://localhost:8000/api/v1/remove_user_model/' + model, {
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFTOKEN': csrf_token
+            },
+        });
+
+        console.log(res.data);
+        getUserModels();
+    } catch (error) {
+        console.error('Error sending POST request:', error);
+    }
+}
+
 async function sendChat() {
     message_loading.value = true;
     chat_end.value.scrollIntoView({});
@@ -149,6 +241,8 @@ async function sendChat() {
         doc_id: current_document_id.value,
         chat_msg: current_chat_message.value
     };
+
+    current_chat_message.value = "";
 
     try {
         const res = await axios.post('http://localhost:8000/api/v1/send_chat', payload, {
@@ -169,7 +263,6 @@ async function sendChat() {
 }
 
 async function getUserDocuments() {
-
     try {
         const res = await axios.get('http://localhost:8000/api/v1/get_user_documents', {
             withCredentials: true,
@@ -206,12 +299,14 @@ async function getUserDocument(doc_id) {
     }
 }
 
-async function setCurrentDocument(document_id, document_data, summary_sentences, document_file_name, document_title, document_author, document_num_pages, document_chat_history) {
+async function setCurrentDocument(document_id, document_data, summary_sentences, document_file_name, document_title, document_author, document_num_pages, document_chat_history, document_used_model) {
     current_document_id.value = document_id;
+    current_document_unaltered.value = document_data;
     current_document.value = document_data;
     current_document_summary_sentences.value = summary_sentences;
     current_document_file_name = document_file_name;
     current_document_author = document_author;
+    current_document_used_model = document_used_model;
     current_document_title = document_title;
     current_document_num_pages = document_num_pages;
     chat_history.value = document_chat_history
@@ -222,7 +317,7 @@ async function setCurrentDocument(document_id, document_data, summary_sentences,
 
 async function loadUserDocument(doc_id) {
     let doc = await getUserDocument(doc_id);
-    await setCurrentDocument(doc_id, doc.file_data, doc.summary, doc.file_name, doc.title, doc.author, doc.num_pages, doc.chat_history);
+    await setCurrentDocument(doc_id, doc.file_data, doc.summary, doc.file_name, doc.title, doc.author, doc.num_pages, doc.chat_history, doc.used_model);
 }
 
 async function deleteUserDocument(doc_id) {
@@ -241,13 +336,60 @@ async function deleteUserDocument(doc_id) {
     }
 }
 
+async function getUserModels() {
+
+    try {
+        const res = await axios.get('http://localhost:8000/api/v1/get_user_models', {
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        });
+        console.log(res.data);
+        user_models.value = res.data['models']
+    } catch (error) {
+        console.error('Error sending GET request:', error);
+    }
+}
+
+async function prev_candidate() {
+    let selected_sentence = current_document_summary_sentences.value[selected_summary_sentence_index.value];
+    let max_index = selected_sentence.candidates.length - 1
+    if (selected_summary_sentence_candidate_index.value == 0) {
+        selected_summary_sentence_candidate_index.value = max_index;
+    }
+    else {
+        selected_summary_sentence_candidate_index.value -= 1;
+    }
+    findInDocument(selected_sentence.candidates[selected_summary_sentence_candidate_index.value].candidate);
+}
+
+async function next_candidate() {
+    let selected_sentence = current_document_summary_sentences.value[selected_summary_sentence_index.value];
+    let max_index = selected_sentence.candidates.length - 1
+    if (selected_summary_sentence_candidate_index.value == max_index) {
+        selected_summary_sentence_candidate_index.value = 0;
+    }
+    else {
+        selected_summary_sentence_candidate_index.value += 1;
+    }
+    findInDocument(selected_sentence.candidates[selected_summary_sentence_candidate_index.value].candidate);
+}
+
+async function close_candidates() {
+    selected_summary_sentence_index.value = null;
+    selected_summary_sentence_candidate_index.value = null;
+    current_document.value = current_document_unaltered.value;
+}
+
+getUserModels();
+
 </script>
 
 <template>
     <div class="overflow-hidden">
         <div ref="top_of_page"></div>
         <Navbar />
-
 
         <!-- SELECTION VIEW -->
 
@@ -298,6 +440,10 @@ async function deleteUserDocument(doc_id) {
                                 <span class="text-end w-full" @click.stop="deleteUserDocument(doc.id)">ⓧ</span>
                             </a>
                             <span class="ms-0 text-xs">{{ doc.summary_teaser }}</span>
+                            <br>
+                            <span
+                                class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-1.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300"
+                                style="font-size: 10px;">{{ doc.used_model }}</span>
                         </div>
                     </li>
                 </ul>
@@ -331,7 +477,10 @@ async function deleteUserDocument(doc_id) {
 
                 <div v-if="main_view_state === MainViewState.WAITING_FOR_USER_DOCUMENT_SELECTION"
                     class="mt-20 md:w-1/2 mx-auto">
-                    <FileUpload @uploaded="(file, dataUrl, model) => fileUploadedEvent(file, dataUrl, model)" />
+                    <FileUpload :user_models="user_models"
+                        @uploaded="(file, dataUrl, model) => fileUploadedEvent(file, dataUrl, model)"
+                        @new_model="(repo_id, filename) => newModelEvent(repo_id, filename)"
+                        @remove_model="(model) => removeModelEvent(model)" />
                 </div>
             </div>
         </div>
@@ -344,8 +493,18 @@ async function deleteUserDocument(doc_id) {
             v-if="main_view_state === MainViewState.LOADING_DOCUMENT_AND_SUMMARY || main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION">
 
             <div class="flex">
-                <div class="w-1/2 text-center">
-                    <PDFViewer :file="current_document" :search_term="search_term_param" />
+                <div class="w-1/2 text-center max-w-m p-12 pt-5">
+                    <PDFViewer :file="current_document"
+                    :search_term="search_term_param"
+                    :current_document_num_pages="current_document_num_pages"
+                    :selected_page="selected_page"
+                    :current_document_summary_sentences="current_document_summary_sentences"
+                    :selected_summary_sentence_index="selected_summary_sentence_index"
+                    :selected_summary_sentence_candidate_index="selected_summary_sentence_candidate_index"
+                    @prev_candidate="() => prev_candidate()"
+                    @next_candidate="() => next_candidate()"
+                    @close_candidates="() => close_candidates()"
+                    />
                 </div>
 
                 <div class="py-4 pe-6 w-1/2">
@@ -358,12 +517,6 @@ async function deleteUserDocument(doc_id) {
                                     aria-selected="false">Document</button>
                             </li>
                             <li class="me-2" role="presentation">
-                                <button ref="search_button"
-                                    class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
-                                    id="search-tab" data-tabs-target="#search" type="button" role="tab"
-                                    aria-controls="search" aria-selected="false">Search</button>
-                            </li>
-                            <li class="me-2" role="presentation">
                                 <button
                                     class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
                                     id="chat-tab" data-tabs-target="#chat" type="button" role="tab" aria-controls="chat"
@@ -372,28 +525,30 @@ async function deleteUserDocument(doc_id) {
                         </ul>
                     </div>
                     <div id="default-tab-content">
-                        <div class="hidden p-8 bg-white rounded-lg pb-6 dark:bg-gray-800" id="document"
-                            role="tabpanel" aria-labelledby="document-tab">
+                        <div class="hidden p-8 bg-white rounded-lg pb-6 dark:bg-gray-800" id="document" role="tabpanel"
+                            aria-labelledby="document-tab">
                             <h2 class="mb-3 text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
                                 Document Information</h2>
+
+
 
                             <ul class="space-y-1 text-gray-800 list-disc list-inside dark:text-gray-400">
                                 <li>
                                     Filename: <b>{{ current_document_file_name }}</b>
                                 </li>
-                                <li>
+                                <li v-if="current_document_title">
                                     Title: <span class="text-sm"><b>{{ current_document_title }}</b></span>
                                 </li>
-                                <li>
+                                <li v-if="current_document_author">
                                     Author: <b>{{ current_document_author }}</b>
                                 </li>
-                                <li>
+                                <li v-if="current_document_num_pages">
                                     Number of pages: <b>{{ current_document_num_pages }}</b>
                                 </li>
                             </ul>
                             <h2 class="mt-4 mb-3 text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-                                Summary</h2>
-
+                                Summary
+                            </h2>
 
                             <div role="status" v-if="main_view_state === MainViewState.LOADING_DOCUMENT_AND_SUMMARY">
                                 <svg aria-hidden="true"
@@ -412,98 +567,31 @@ async function deleteUserDocument(doc_id) {
                             <div>
                                 <p class="mb-3 text-gray-800 dark:text-gray-800"
                                     v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION">
-                                    <span v-for="sentence in current_document_summary_sentences"
-                                        class="hover:text-blue-600 cursor-pointer" @click="searchForSource(sentence)">{{
-                                            sentence.sentence }}&nbsp;
+                                    <span v-for="(sentence, index) in current_document_summary_sentences"
+                                        @click="searchForSource(index)">
+                                        <span v-if="index == selected_summary_sentence_index" class="text-blue-600 cursor-pointer">
+                                            {{ sentence.sentence }}&nbsp;
+                                        </span>
+                                        <span v-else class="hover:text-blue-600 cursor-pointer">
+                                            {{ sentence.sentence }}&nbsp;
+                                        </span>
                                     </span>
                                 </p>
                             </div>
 
                             <div v-if="main_view_state === MainViewState.LOADING_DOCUMENT_AND_SUMMARY" class="mt-2">
-                                <span class="text-gray-800">Please wait for the summary to finish and do not close
-                                    the site.</span>
+                                <span class="text-gray-800">
+                                    Please wait for the summary to finish and do not close the site.
+                                </span>
                             </div>
 
-                            <a href="#" @click="reset"
-                                v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION"
-                                class="inline-flex mt-4 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">
-                                Back to document selection
-                                <svg class=" w-2.5 h-2.5 ms-2 rtl:rotate-180" aria-hidden="true"
-                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                        stroke-width="2" d="m1 9 4-4-4-4" />
-                                </svg>
-                            </a>
-                        </div>
-                        <div class="hidden p-8 bg-white rounded-lg pb-6 dark:bg-gray-800" id="search" role="tabpanel"
-                            aria-labelledby="search-tab">
-                            <div v-if="selected_sencente != null">
-                                <form class="mx-auto" @submit.prevent="onSubmit">
-                                    <label for="defaultSearch"
-                                        class="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">Search</label>
-                                    <div class="relative">
-                                        <label for="message"
-                                            class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                                            Your selection
-                                        </label>
-                                        <div class="text-gray-600 border border-gray-300 rounded-lg bg-gray-100 p-3">
-                                            <span>
-                                                {{ selected_sencente }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </form>
+                            <span class="text-sm" v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION">Chat model:&nbsp;</span>
+                            <span v-if="current_document_used_model"
+                                class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-1.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300"
+                                style="font-size: 12px;">{{ current_document_used_model }}
+                            </span>
 
-                                <hr class="mt-4">
-
-                                <div>
-                                    <label for="message"
-                                        class="block mb-2 mt-2 text-sm font-medium text-gray-900 dark:text-white">
-                                        Most probable information sources
-                                    </label>
-
-                                    <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                                        <table
-                                            class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                            <thead
-                                                class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
-                                                <tr>
-                                                    <th scope="col" class="px-6 py-3">
-                                                        Confidence Score
-                                                    </th>
-                                                    <th scope="col" class="px-6 py-3">
-                                                        Sentence
-                                                    </th>
-                                                    <th scope="col" class="px-6 py-3">
-                                                        Action
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr v-for="candidate in selected_sencente_candidates"
-                                                    class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                                    <th scope="row"
-                                                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                                        {{ candidate.confidence_score }}
-                                                    </th>
-                                                    <td class="px-6 py-4">
-                                                        {{ candidate.candidate }}
-                                                    </td>
-                                                    <td class="px-6 py-4">
-                                                        <a href="#" @click="findInDocument(candidate.candidate)"
-                                                            class="font-medium text-blue-600 dark:text-blue-500 hover:underline">
-                                                            Show
-                                                        </a>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-else>
-                                <p class="text-sm font-normal text-gray-800">Please select a sentence from the generated summary in order to search for source candidates.</p>
-                            </div>
+                            <br>
                             <a href="#" @click="reset"
                                 v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION"
                                 class="inline-flex mt-4 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">
@@ -518,7 +606,8 @@ async function deleteUserDocument(doc_id) {
 
                         <div class="hidden p-2 bg-white rounded-lg" id="chat" role="tabpanel"
                             aria-labelledby="chat-tab">
-                            <div>
+                            <div
+                                v-if="current_document_used_model != null && current_document_used_model != 'None'">
                                 <div class="flex flex-col w-full overflow-hidden" style="height: 70vh;">
                                     <div class="flex-1 overflow-y-auto p-4 border space-y-2 bg-gray-200 rounded-xl"
                                         id="chat-window">
@@ -530,12 +619,16 @@ async function deleteUserDocument(doc_id) {
                                                         class="flex flex-col w-full max-w-[320px] leading-1.5 p-4 border-gray-200 rounded-e-xl rounded-es-xl bg-gray-700">
                                                         <div class="flex items-center space-x-2 rtl:space-x-reverse">
                                                             <span class="text-sm font-semibold text-white">
-                                                                Source Seeker
+                                                                The Sourcerer
                                                             </span>
                                                             <span class="text-sm font-normal text-gray-400"></span>
                                                         </div>
                                                         <div class="text-sm font-normal py-2.5 text-gray-900 text-white"
                                                             v-html="marked(chat_message.content)"></div>
+                                                        <span v-if="current_document_used_model"
+                                                            class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-1.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300"
+                                                            style="font-size: 12px;">{{ current_document_used_model
+                                                            }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -572,11 +665,13 @@ async function deleteUserDocument(doc_id) {
                                     </div>
 
                                     <div class="p-1">
-                                        <form class="mt-4 relative t-0" @submit.prevent="onSubmit">
+                                        </input>
+                                        <form class="mt-1 relative t-0" @submit.prevent="onSubmit">
                                             <label for="chat" class="sr-only">Your message</label>
                                             <div
                                                 class="flex items-center px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700">
                                                 <textarea id="chat" rows="1" v-model="current_chat_message"
+                                                    @keyup.enter="sendChat()"
                                                     class="block mx-4 p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                                                     placeholder="Your message..."></textarea>
                                                 <button type="submit" @click.stop="sendChat()"
@@ -590,17 +685,32 @@ async function deleteUserDocument(doc_id) {
                                                     <span class="sr-only">Send message</span>
                                                 </button>
                                                 <span class="sr-only">Send message</span>
-                                                </input>
                                             </div>
                                         </form>
                                     </div>
                                 </div>
+                            </div>
+                            <div v-else class="p-6 bg-white rounded-lg pb-4 dark:bg-gray-800">
+                                <p class="text-sm font-normal text-gray-800">
+                                    This feature is only available if you select a model during document upload.
+                                </p>
+                                <a href="#" @click="reset"
+                                    v-if="main_view_state === MainViewState.WAITING_FOR_USER_SENTENCE_SELECTION"
+                                    class="inline-flex mt-4 items-center font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-700">
+                                    Back to document selection
+                                    <svg class=" w-2.5 h-2.5 ms-2 rtl:rotate-180" aria-hidden="true"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="2" d="m1 9 4-4-4-4" />
+                                    </svg>
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <FooterBar />
     </div>
 </template>

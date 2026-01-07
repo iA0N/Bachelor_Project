@@ -1,34 +1,50 @@
 <template>
-    <div>
-                <button type="button" @click="zoomIn()"
-            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-2 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-            <svg class="w-4 h-4 text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                fill="none" viewBox="0 0 26 26">
-                <path stroke="currentColor" stroke-linecap="round" stroke-width="2"
-                    d="m21 21-3.5-3.5M10 7v6m-3-3h6m4 0a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
-            </svg>
+    <div class="flex items-center justify-between bg-gray-200 border-b-2 border-blue-500 p-2 shadow rounded-t-md max-w-102">
+        <div class="flex items-center space-x-2">
+            <button class="px-3 py-1 bg-white border rounded hover:bg-gray-200" id="prevPage" @click="prevPage()">
+                ← Prev
+            </button>
+            <span id="pageInfo" class="text-sm min-w-24">Page {{ current_page }} of {{ current_document_num_pages }}
+            </span>
+            <button class="px-3 py-1 bg-white border rounded hover:bg-gray-200" id="nextPage" @click="nextPage()">
+                Next →
+            </button>
+        </div>
 
-        </button>
-        <button type="button" @click="zoomOut()"
-            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-2 py-2 text-center me-52 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-            <svg class="w-4 h-4 text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" stroke-linecap="round" stroke-width="2"
-                    d="m21 21-3.5-3.5M7 10h6m4 0a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
-            </svg>
-        </button>
-        
-        <button type="button" @click="prevPage()"
-            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-            ← </button>
-        <button type="button"
-            class="text-gray-900 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-full text-sm px-5 py-2.5 me-2 mb-2 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700">
-            {{ current_page }}
-        </button>
-        <button type="button" @click="nextPage()"
-            class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-3 py-2 text-center me-2 mb-1 mt-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-            →
-        </button>
+        <div class="flex items-center space-x-2">
+            <button class="px-3 py-1 bg-white border rounded hover:bg-gray-200" id="zoomOut" @click="zoomOut()">
+                ➖
+            </button>
+            <span id="zoomLevel" class="text-sm">{{ total_scale.toFixed(2) }}</span>
+            <button class="px-3 py-1 bg-white border rounded hover:bg-gray-200" id="zoomIn" @click="zoomIn()">
+                ➕
+            </button>
+        </div>
+    </div>
+    <div class="flex justify-end" v-if="selected_summary_sentence_index != null">
+        <div class="mt-2 bg-gray-200 max-w-74 border rounded">
+            <div class="p-2">
+                <span class="text-sm me-8">
+                    Candidate: {{ selected_summary_sentence_candidate_index + 1 }} / {{ current_document_summary_sentences[selected_summary_sentence_index].candidates.length }} 
+                </span>
+                <button class="ml-2 px-3 me-1 bg-white border rounded hover:bg-gray-200" id="searchPrev" @click="emit('prev_candidate')">
+                    ◀
+                </button>
+                <button class="px-3 bg-white border rounded hover:bg-gray-200" id="searchNext" @click="emit('next_candidate')">
+                    ▶
+                </button>
+                <button class="ml-2 ms-4 text-gray-500 hover:text-gray-800" id="closeSearch" @click="emit('close_candidates')">
+                    ✕
+                </button>
+                <br>
+                <span class="text-sm">
+                    Confidence score: {{ current_document_summary_sentences[selected_summary_sentence_index].candidates[selected_summary_sentence_candidate_index].confidence_score }}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div>
+        <CandidateSelector />
     </div>
 
     <div class="container">
@@ -40,6 +56,8 @@
 </template>
 
 <script setup>
+
+import CandidateSelector from '@/components/CandidateSelector.vue'
 import { onMounted, onUpdated, ref, watch } from 'vue'
 import { initFlowbite } from 'flowbite'
 import * as pdfjsLib from "pdfjs-dist/build/pdf";
@@ -49,8 +67,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const props = defineProps({
     file: String,
-    search_term: String
+    search_term: String,
+    selected_page: Number,
+    current_document_num_pages: Number,
+    current_document_summary_sentences: Object,
+    selected_summary_sentence_index: Number,
+    selected_summary_sentence_candidate_index: Number,
 })
+
+const emit = defineEmits(['prev_candidate', 'next_candidate'])
 
 let pdf = null;
 let current_page = ref(1);
@@ -61,7 +86,6 @@ let highlightCanvas = ref(null);
 let highlightContext = null;
 
 let dyn_scale = ref(0.1);
-let scale_divisor = 2000;
 let zoom = 0;
 let total_scale = ref(0.1);
 
@@ -150,10 +174,11 @@ async function loadDocument() {
         pdf = loaded_document;
 
         if (props.search_term != "") {
-            let page_number = await getFirstOccurrence()
-            if (page_number != -1) {
-                current_page.value = page_number;
-            }
+            current_page.value = props.selected_page
+            //let page_number = await getFirstOccurrence()
+            // if (page_number != -1) {
+            //    current_page.value = page_number;
+            // }
         }
 
         renderPage(current_page.value);

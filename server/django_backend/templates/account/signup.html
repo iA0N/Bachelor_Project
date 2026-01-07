@@ -4,9 +4,6 @@
     {% trans "Signup" %}
 {% endblock head_title %}
 {% block content %}
-    {% element h1 %}
-        {% trans "Sign Up" %}
-    {% endelement %}
     {% setvar link %}
         <a href="{{ login_url }}">
         {% endsetvar %}
@@ -14,32 +11,54 @@
         </a>
     {% endsetvar %}
     {% element p %}
-        {% blocktranslate %}Already have an account? Then please {{ link }}sign in{{ end_link }}.{% endblocktranslate %}
     {% endelement %}
-    {% if not SOCIALACCOUNT_ONLY %}
-        {% url 'account_signup' as action_url %}
-        {% element form form=form method="post" action=action_url tags="entrance,signup" %}
-            {% slot body %}
-                {% csrf_token %}
-                {% element fields form=form unlabeled=True %}
-                {% endelement %}
-                {{ redirect_field }}
-            {% endslot %}
-            {% slot actions %}
-                {% element button tags="prominent,signup" type="submit" %}
-                    {% trans "Sign Up" %}
-                {% endelement %}
-            {% endslot %}
-        {% endelement %}
-    {% endif %}
-    {% if PASSKEY_SIGNUP_ENABLED %}
-        {% element hr %}
-        {% endelement %}
-        {% element button href=signup_by_passkey_url tags="prominent,signup,outline,primary" %}
-            {% trans "Sign up using a passkey" %}
-        {% endelement %}
-    {% endif %}
-    {% if SOCIALACCOUNT_ENABLED %}
-        {% include "socialaccount/snippets/login.html" with page_layout="entrance" %}
-    {% endif %}
+
+            <section class="mt-5">
+            <div class="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
+                <a href="#" class="flex items-center mb-6 text-2xl font-semibold text-dark-900">
+                  Sourcerer
+                </a>
+                <div class="w-50 rounded-lg shadow border md:mt-0 sm:max-w-md xl:p-0 bg-gray-800 border-gray-700">
+                    <div class="p-10 space-y-4 md:space-y-6 sm:p-8">
+                        <h1 class="text-xl font-bold leading-tight tracking-tight md:text-2xl text-white">
+                            Create your account:
+                        </h1>
+                        {% element form form=form method="post" action=action_url tags="entrance,signup" %}
+                        {% slot body %}
+                            {% csrf_token %}
+                            <div>
+                                <label for="id_email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email (optional):</label>
+                                <input type="email" name="email" placeholder="Email address" autocomplete="email" maxlength="320" id="id_email" class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                            </div>
+                            <div class="mt-2">
+                                <label for="id_username" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Your username:</label>
+                                <input type="text" name="username" placeholder="Username" autocomplete="username" minlength="1" maxlength="150" required id="id_username" class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                            </div>
+                            <div class="mt-2">
+                                <label for="id_password1" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password:</label>
+                                <input type="password" name="password1" placeholder="Password" autocomplete="new-password" required id="id_password1" class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                            </div>
+                            <div class="mt-2">
+                                <label for="id_password2" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password (again):</label>
+                                <input type="password" name="password2" placeholder="Password (again)" autocomplete="new-password" required id="id_password2" class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                            </div>
+                            {{ redirect_field }}
+                            {% endslot %}
+                            {% slot actions %}
+                                <button type="submit" class="w-full text-white bg-primary-600 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                                   <span class="font-medium text-primary-600 hover:underline cursor-pointer">Sign up</span>
+                                </button>
+                            {% endslot %}
+                        {% endelement %}
+                        <br>
+                        <p class="w-full text-center text-white bg-primary-600">{% blocktranslate %}Already have an account?{% endblocktranslate %}
+                        <button type="submit" class="w-full text-white bg-primary-600 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                            <a href="/accounts/login/" class="font-medium text-primary-600 hover:underline dark:text-primary-500">Sign in</a>
+                        </button></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
 {% endblock content %}
